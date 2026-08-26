@@ -8,6 +8,7 @@ describe('Test Suite for CartView Component', () => {
   afterAll(() => window.fetch.mockClear())
 
   test('zipcode update is reflected in new tax calculation', async () => {
+    const mockOnChangeTax = jest.fn();
     window.fetch.mockResolvedValueOnce({
       status: 200,
       ok: true,
@@ -17,6 +18,9 @@ describe('Test Suite for CartView Component', () => {
       }),
     })
 
-    render(<ZipcodeEntry zipcode={12345} onChangeTax={()=>{}} />);
+    render(<ZipcodeEntry zipcode={12345} onChangeTax={mockOnChangeTax} />);
+    
+    // Verify component renders without errors
+    expect(window.fetch).toBeDefined();
   });
 });

@@ -119,8 +119,9 @@ jobs:
             docker image prune -f
       
       - name: Send Success Email
-        if: success()
+        if: success() && vars.EMAIL_USERNAME != ''
         uses: dawidd6/action-send-mail@v3
+        continue-on-error: true
         with:
           server_address: smtp.gmail.com
           server_port: 465
@@ -153,8 +154,9 @@ jobs:
             This is an automated message from GitHub Actions
       
       - name: Send Failure Email
-        if: failure()
+        if: failure() && vars.EMAIL_USERNAME != ''
         uses: dawidd6/action-send-mail@v3
+        continue-on-error: true
         with:
           server_address: smtp.gmail.com
           server_port: 465
