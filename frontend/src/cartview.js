@@ -65,7 +65,7 @@ function CartView(props) {
 }
 
 CartView.propTypes = {
-  cartId: PropTypes.number.isRequired,
+  cartId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
   shippingCost: PropTypes.number.isRequired
 };
 

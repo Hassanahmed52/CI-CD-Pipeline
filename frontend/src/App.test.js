@@ -24,16 +24,23 @@ describe('Test Suite for App Component', () => {
       status: 200,
       ok: true,
       json: async () => ({
-        cartID: "999999",
+        cartID: "777",
         cartItems: [
+          {
+            title: "TestItem",
+            description: "TestDesc",
+            cost: 100,
+            imageUrl: "test.jpg"
+          }
         ]
       }),
     })
 
-    render(<App cartId={999999} />);
-    await waitFor(() => screen.getByTestId('thanks_id'))
-    const element = screen.getByText("Thank you for shopping with us!");
+    render(<App />);
+    await waitFor(() => screen.getByTestId('cart_heading_id'))
+    const element = screen.getByTestId('cart_heading_id');
     expect(element).toBeInTheDocument();
+    expect(element).toHaveTextContent('Shopping Cart');
   });
 
   test('renders header text', async () => {
