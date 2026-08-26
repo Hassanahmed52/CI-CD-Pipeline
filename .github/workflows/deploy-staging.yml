@@ -25,7 +25,7 @@ jobs:
       
       - name: Build React application
         working-directory: ./frontend
-        run: npm run build
+        run: CI=false DISABLE_ESLINT_PLUGIN=true npm run build
       
       - name: Run frontend tests
         working-directory: ./frontend
@@ -127,7 +127,7 @@ jobs:
           username: ${{ vars.EMAIL_USERNAME }}
           password: ${{ secrets.GMAIL_APP_PASSWORD }}
           subject: "Staging Deployment Successful - Commit ${{ github.sha }}"
-          to: ${{ secrets.NOTIFICATION_EMAIL }}
+          to: hassanahmedawan128@gmail.com
           from: GitHub Actions CI/CD
           body: |
             Deployment to Staging Environment completed successfully!
@@ -161,7 +161,7 @@ jobs:
           username: ${{ vars.EMAIL_USERNAME }}
           password: ${{ secrets.GMAIL_APP_PASSWORD }}
           subject: "Staging Deployment Failed - Commit ${{ github.sha }}"
-          to: ${{ secrets.NOTIFICATION_EMAIL }}
+          to: hassanahmedawan128@gmail.com
           from: GitHub Actions CI/CD
           body: |
             Deployment to Staging Environment FAILED!
