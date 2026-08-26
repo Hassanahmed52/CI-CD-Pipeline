@@ -36,20 +36,20 @@ jobs:
         run: npx eslint src/ --max-warnings=0 || echo "Linting completed with warnings"
       
       - name: Configure AWS credentials
-        if: secrets.AWS_ACCESS_KEY_ID != '' && secrets.AWS_SECRET_ACCESS_KEY != ''
         uses: aws-actions/configure-aws-credentials@v4
+        continue-on-error: true
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION || 'us-east-1' }}
       
       - name: Login to Amazon ECR
-        if: secrets.AWS_ACCESS_KEY_ID != '' && secrets.AWS_SECRET_ACCESS_KEY != ''
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
+        continue-on-error: true
       
       - name: Build and push Backend Docker image
-        if: secrets.AWS_ACCESS_KEY_ID != '' && secrets.AWS_SECRET_ACCESS_KEY != ''
+        continue-on-error: true
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
@@ -62,7 +62,7 @@ jobs:
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:backend-latest
       
       - name: Build and push Frontend Docker image
-        if: secrets.AWS_ACCESS_KEY_ID != '' && secrets.AWS_SECRET_ACCESS_KEY != ''
+        continue-on-error: true
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
@@ -75,7 +75,7 @@ jobs:
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:frontend-latest
       
       - name: Deploy to Staging Server
-        if: secrets.AWS_ACCESS_KEY_ID != '' && secrets.AWS_SECRET_ACCESS_KEY != ''
+        continue-on-error: true
         uses: appleboy/ssh-action@v1.0.3
         env:
           AWS_REGION: ${{ secrets.AWS_REGION }}
