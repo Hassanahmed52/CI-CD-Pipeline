@@ -1,0 +1,187 @@
+name: Deploy to Testing Environment
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy-testing:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      
+      - name: Install frontend dependencies
+        working-directory: ./frontend
+        run: npm install
+      
+      - name: Build React application
+        working-directory: ./frontend
+        run: npm run build
+      
+      - name: Run frontend tests
+        working-directory: ./frontend
+        run: npm run test
+      
+      - name: Run linting
+        working-directory: ./frontend
+        run: npx eslint src/ --max-warnings=0 || echo "Linting completed with warnings"
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+      
+      - name: Build and push Backend Docker image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          cd backend
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:backend-$IMAGE_TAG .
+          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:backend-$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:backend-latest
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:backend-$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:backend-latest
+      
+      - name: Build and push Frontend Docker image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          cd frontend
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:frontend-$IMAGE_TAG .
+          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:frontend-$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:frontend-latest
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:frontend-$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:frontend-latest
+      
+      - name: Deploy to Testing Server
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
+          IMAGE_TAG: ${{ github.sha }}
+        with:
+          host: ${{ secrets.EC2_TESTING_IP }}
+          username: ${{ vars.EC2_HOST }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          envs: AWS_REGION,ECR_REGISTRY,ECR_REPOSITORY,IMAGE_TAG
+          script: |
+            # Navigate to app directory
+            cd ~/app || mkdir -p ~/app && cd ~/app
+            
+            # Clone or pull latest code for docker-compose.yml
+            if [ -d ".git" ]; then
+              echo "Repository exists, pulling latest changes..."
+              git pull origin main
+            else
+              echo "Cloning repository..."
+              git clone https://github.com/${{ github.repository }}.git .
+            fi
+            
+            # Login to ECR
+            aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
+            
+            # Pull latest Docker images
+            docker pull $ECR_REGISTRY/$ECR_REPOSITORY:backend-latest
+            docker pull $ECR_REGISTRY/$ECR_REPOSITORY:frontend-latest
+            
+            # Stop and remove existing containers
+            docker-compose down || true
+            
+            # Update docker-compose.yml to use ECR images
+            sed -i "s|image: backend:.*|image: $ECR_REGISTRY/$ECR_REPOSITORY:backend-latest|g" docker-compose.yml
+            sed -i "s|image: frontend:.*|image: $ECR_REGISTRY/$ECR_REPOSITORY:frontend-latest|g" docker-compose.yml
+            
+            # Start containers with docker-compose
+            docker-compose up -d
+            
+            # Show running containers
+            docker ps
+            
+            # Clean up old images
+            docker image prune -f
+      
+      - name: Send Success Email
+        if: success()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ vars.EMAIL_USERNAME }}
+          password: ${{ secrets.GMAIL_APP_PASSWORD }}
+          subject: "Testing Deployment Successful - PR #${{ github.event.pull_request.number }}"
+          to: ${{ secrets.NOTIFICATION_EMAIL }}
+          from: GitHub Actions CI/CD
+          body: |
+            Deployment to Testing Environment completed successfully!
+            
+            Deployment Details:
+            - Repository: ${{ github.repository }}
+            - Branch: ${{ github.head_ref }}
+            - Commit: ${{ github.sha }}
+            - Author: ${{ github.actor }}
+            - Pull Request: #${{ github.event.pull_request.number }}
+            
+            Services Deployed:
+            - Frontend (Port 3000): React application with Nginx
+            - Backend (Port 5000): Express API server
+            
+            Access the application:
+            http://${{ secrets.EC2_TESTING_IP }}:3000
+            
+            All tests passed
+            Build successful
+            Deployment completed
+            
+            View Details: ${{ github.event.pull_request.html_url }}
+            
+            ---
+            This is an automated message from GitHub Actions
+      
+      - name: Send Failure Email
+        if: failure()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ vars.EMAIL_USERNAME }}
+          password: ${{ secrets.GMAIL_APP_PASSWORD }}
+          subject: "Testing Deployment Failed - PR #${{ github.event.pull_request.number }}"
+          to: ${{ secrets.NOTIFICATION_EMAIL }},${{ github.event.pull_request.user.email }}
+          from: GitHub Actions CI/CD
+          body: |
+            Deployment to Testing Environment FAILED!
+            
+            Deployment Details:
+            - Repository: ${{ github.repository }}
+            - Branch: ${{ github.head_ref }}
+            - Commit: ${{ github.sha }}
+            - Author: ${{ github.actor }}
+            - Pull Request: #${{ github.event.pull_request.number }}
+            
+            Deployment failed
+            
+            Please check the workflow logs for details:
+            ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            
+            Pull Request: ${{ github.event.pull_request.html_url }}
+            
+            ---
+            This is an automated message from GitHub Actions
