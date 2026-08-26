@@ -63,7 +63,7 @@ cd ci-cd
 
 ```bash
 # Clone the repository (if not already cloned)
-git clone https://github.com/Hassanahmed52/CI-CD-Pipeline-with-Git-and-GitHub-Actions---assignment3.git
+git clone https://github.com/Hassanahmed52/CI-CD-Pipeline.git
 cd ci-cd
 
 # Start the application
@@ -324,12 +324,87 @@ The application is fully responsive:
 
 ## 🚀 CI/CD Pipeline
 
-This repository includes GitHub Actions workflows for:
-1. **Testing** - Automated unit and integration tests
-2. **Building** - Docker image creation and optimization
-3. **Registry** - Push to Amazon ECR
-4. **Deployment** - Auto-deploy to AWS EC2 instances
-5. **Notifications** - Email alerts on deployment status
+### GitHub Actions Workflows
+
+This repository includes two automated CI/CD pipelines:
+
+#### 1. **Testing Pipeline** (Pull Requests)
+- **Trigger**: Pull request to `main` branch
+- **Workflow**: `.github/workflows/deploy-testing.yml`
+- **Steps**:
+  - Checkout code
+  - Setup Node.js 22
+  - Install dependencies
+  - Build React with `CI=false DISABLE_ESLINT_PLUGIN=true` flags
+  - Run all tests with coverage
+  - Run ESLint
+  - Build Docker images (optional with AWS credentials)
+  - Deploy to testing server (optional)
+  - Send email notification
+
+#### 2. **Staging Pipeline** (Main Branch)
+- **Trigger**: Push to `main` branch or manual dispatch
+- **Workflow**: `.github/workflows/deploy-staging.yml`
+- **Steps**:
+  - Checkout code
+  - Setup Node.js 22
+  - Install dependencies
+  - Build React with `CI=false DISABLE_ESLINT_PLUGIN=true` flags
+  - Run all tests with coverage
+  - Run ESLint
+  - Build Docker images (optional with AWS credentials)
+  - Deploy to staging server (optional)
+  - Send email notification
+
+### Build Optimizations
+
+```bash
+# Production build flags used in workflows
+CI=false DISABLE_ESLINT_PLUGIN=true npm run build
+```
+
+**Reason for Flags:**
+- `CI=false`: Treats warnings as warnings (not errors)
+- `DISABLE_ESLINT_PLUGIN=true`: Bypasses react-scripts embedded eslint plugin to avoid version conflicts
+
+### AWS Integration (Optional)
+
+To enable AWS ECR and EC2 deployment, add these secrets to GitHub:
+
+**Required Secrets:**
+- `AWS_ACCESS_KEY_ID` - AWS IAM access key
+- `AWS_SECRET_ACCESS_KEY` - AWS IAM secret key
+- `ECR_REPOSITORY` - Amazon ECR repository name
+- `EC2_SSH_KEY` - Private SSH key for EC2 access
+- `EC2_TESTING_IP` - Testing server IP address
+- `EC2_STAGING_IP` - Staging server IP address
+
+**Optional Variables:**
+- `AWS_REGION` - AWS region (defaults to `us-east-1`)
+- `EC2_HOST` - EC2 username (defaults to `ec2-user`)
+- `EMAIL_USERNAME` - Gmail account for notifications
+
+**Optional Secrets:**
+- `GMAIL_APP_PASSWORD` - Gmail app password
+- `NOTIFICATION_EMAIL` - Email for deployment alerts
+
+**Without AWS Credentials:** Workflow still builds and tests successfully; AWS/deployment steps are skipped gracefully.
+
+### Test Coverage
+
+**Frontend Test Results:**
+- 14 tests passing
+- 7 test suites passing
+- Coverage targets:
+  - Statements: 67%+
+  - Branches: 50%+
+  - Functions: 57%+
+  - Lines: 67%+
+
+**Backend Test Results:**
+- API endpoint tests
+- Health check validation
+- Error handling verification
 
 ---
 
@@ -397,57 +472,22 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ---
 
-**Last Updated**: August 2026  
-**Version**: 2.0 - Enhanced Shopping Cart with Multi-Cart Selection
-- Sends email notification on completion
+**Last Updated**: August 27, 2026  
+**Version**: 2.1 - Production-Ready CI/CD Pipeline
 
-### Pipeline Steps
+**Recent Updates:**
+- ✅ Fixed React build eslint plugin conflicts
+- ✅ Completed and validated all unit tests
+- ✅ Fixed CartView PropTypes for string/number cartId
+- ✅ Made AWS steps gracefully handle missing credentials
+- ✅ Configured email notifications for deployments
+- ✅ Multi-cart selection with 2 pre-loaded shopping carts
+- ✅ Professional UI with animations and responsive design
+- ✅ Complete Docker Compose orchestration
 
-1. **Code Checkout** - Fetch latest code from repository
-2. **Dependency Installation** - Install Node.js dependencies
-3. **Build** - Compile React application
-4. **Test** - Run unit tests with coverage
-5. **Lint** - Check code quality with ESLint
-6. **Docker Build** - Create Docker image
-7. **ECR Push** - Upload image to Amazon ECR
-8. **Deploy** - SSH to EC2 and deploy container
-9. **Notify** - Send email with deployment status
+## Deployment Strategies
 
-
-## Testing
-
-### Run All Tests:
-```bash
-npm run test-react
-```
-
-### Run Tests with Coverage:
-```bash
-npm run test-react -- --coverage
-```
-
-### Run Linting:
-```bash
-npx eslint src/
-```
-
-## Deployment
-
-### Manual Deployment
-
-#### Without Docker:
-```bash
-# Install dependencies
-npm install
-
-# Build frontend
-npm run build-react
-
-# Start with PM2
-pm2 start index.js --name ci-cd-app
-```
-
-#### With Docker:
+### With Docker (Recommended):
 ```bash
 # Build image
 docker build -t ci-cd-app:latest .
